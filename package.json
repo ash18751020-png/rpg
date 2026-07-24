@@ -1,0 +1,13 @@
+{
+  "name": "rpg-multiplayer-server",
+  "version": "1.0.0",
+  "description": "크로니클 오브 아르텔 - 협동 사냥 멀티플레이 서버",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5"
+  }
+}
