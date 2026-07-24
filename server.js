@@ -90,6 +90,12 @@ io.on('connection', (socket) => {
     socket.to(currentRoom).emit('monsterRespawn', { zone, netId, x, y, hp, hpMax });
   });
 
+  // 성직자/음유시인 계열의 힐/버프 캐스팅을 근처 아군에게 전파
+  socket.on('partyBuff', (data) => {
+    if(!currentRoom) return;
+    socket.to(currentRoom).emit('partyBuff', data);
+  });
+
   socket.on('chat', (msg) => {
     if(!currentRoom) return;
     io.to(currentRoom).emit('chat', { id: socket.id, msg: String(msg).slice(0,200) });
