@@ -19,6 +19,8 @@ app.get('/', (req, res) => {
 //   zoneState: { zoneId: [ {netId, typeKey, kind, x, y, hp, hpMax, alive, ...} ] }
 // }
 const rooms = {};
+const trades = {}; // tradeId -> {room, a, b, offerA:{gold,items}, offerB:{gold,items}, confirmedA, confirmedB}
+let tradeIdCounter = 1;
 
 function getRoom(code){
   if(!rooms[code]) rooms[code] = { players: {}, zoneState: {} };
@@ -96,6 +98,64 @@ io.on('connection', (socket) => {
     socket.to(currentRoom).emit('partyBuff', data);
   });
 
+  // ===== 플레이어 간 거래 =====
+  socket.on('tradeRequest', ({ targetId }) => {
+    if(!currentRoom || !rooms[currentRoom]) return;
+    const me = rooms[currentRoom].players[socket.id];
+    io.to(targetId).emit('tradeRequestReceived', { fromId: socket.id, fromName: me ? me.name : '???' });
+  });
+
+  socket.on('tradeResponse', ({ targetId, accepted }) => {
+    if(!currentRoom) return;
+    if(accepted){
+      const tradeId = 'trade_' + (tradeIdCounter++);
+      trades[tradeId] = {
+        room: currentRoom, a: socket.id, b: targetId,
+        offerA: { gold: 0, items: [] }, offerB: { gold: 0, items: [] },
+        confirmedA: false, confirmedB: false,
+      };
+      socket.emit('tradeStarted', { tradeId, otherId: targetId });
+      io.to(targetId).emit('tradeStarted', { tradeId, otherId: socket.id });
+    } else {
+      io.to(targetId).emit('tradeResponseReceived', { accepted: false });
+    }
+  });
+
+  socket.on('tradeUpdateOffer', ({ tradeId, gold, items }) => {
+    const t = trades[tradeId];
+    if(!t) return;
+    const isA = t.a === socket.id;
+    const offer = { gold: Number(gold)||0, items: Array.isArray(items) ? items.slice(0,40) : [] };
+    if(isA) t.offerA = offer; else t.offerB = offer;
+    t.confirmedA = false; t.confirmedB = false;
+    const otherId = isA ? t.b : t.a;
+    io.to(otherId).emit('tradeOfferUpdated', offer);
+    io.to(t.a).emit('tradeConfirmReset', {});
+    io.to(t.b).emit('tradeConfirmReset', {});
+  });
+
+  socket.on('tradeConfirm', ({ tradeId }) => {
+    const t = trades[tradeId];
+    if(!t) return;
+    const isA = t.a === socket.id;
+    if(isA) t.confirmedA = true; else t.confirmedB = true;
+    const otherId = isA ? t.b : t.a;
+    io.to(otherId).emit('tradeConfirmUpdated', {});
+    if(t.confirmedA && t.confirmedB){
+      io.to(t.a).emit('tradeExecute', { myOffer: t.offerA, theirOffer: t.offerB });
+      io.to(t.b).emit('tradeExecute', { myOffer: t.offerB, theirOffer: t.offerA });
+      delete trades[tradeId];
+    }
+  });
+
+  socket.on('tradeCancel', ({ tradeId }) => {
+    const t = trades[tradeId];
+    if(!t) return;
+    const otherId = t.a === socket.id ? t.b : t.a;
+    io.to(otherId).emit('tradeCancelled', {});
+    delete trades[tradeId];
+  });
+
   socket.on('chat', (msg) => {
     if(!currentRoom) return;
     io.to(currentRoom).emit('chat', { id: socket.id, msg: String(msg).slice(0,200) });
@@ -105,6 +165,14 @@ io.on('connection', (socket) => {
     if(currentRoom && rooms[currentRoom]){
       delete rooms[currentRoom].players[socket.id];
       socket.to(currentRoom).emit('playerLeft', socket.id);
+    }
+    for(const tid in trades){
+      const t = trades[tid];
+      if(t.a === socket.id || t.b === socket.id){
+        const otherId = t.a === socket.id ? t.b : t.a;
+        io.to(otherId).emit('tradeCancelled', {});
+        delete trades[tid];
+      }
     }
   });
 });
