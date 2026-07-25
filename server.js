@@ -98,6 +98,16 @@ io.on('connection', (socket) => {
     socket.to(currentRoom).emit('partyBuff', data);
   });
 
+  // 보스/몬스터 처치 시 데미지 기여도 10% 이상인 플레이어들에게 경험치 분배
+  socket.on('expShare', ({ qualifiedIds, exp }) => {
+    if(!currentRoom || !Array.isArray(qualifiedIds)) return;
+    qualifiedIds.forEach(id => {
+      if(rooms[currentRoom] && rooms[currentRoom].players[id]){
+        io.to(id).emit('expShareReceived', { exp });
+      }
+    });
+  });
+
   // ===== 플레이어 간 거래 =====
   socket.on('tradeRequest', ({ targetId }) => {
     if(!currentRoom || !rooms[currentRoom]) return;
