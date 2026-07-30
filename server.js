@@ -153,6 +153,11 @@ io.on('connection', (socket) => {
     io.to(targetId).emit('pvpAttack', { attackerId: socket.id, dmg, attackerName, skillName });
   });
 
+  socket.on('pvpItemSteal', ({ targetId, item }) => {
+    if(!currentRoom || !targetId) return;
+    io.to(targetId).emit('pvpItemSteal', { item });
+  });
+
   // 파티 버프(회복/버프 등) - 같은 방의 다른 플레이어에게 전파, 거리 판정은 클라이언트가 함
   socket.on('partyBuff', (data) => {
     if(!currentRoom) return;
