@@ -23,7 +23,7 @@ const rooms = {};
 const trades = {};
 
 function getRoom(code){
-  if(!rooms[code]) rooms[code] = { players: {}, zoneState: {} };
+  if(!rooms[code]) rooms[code] = { players: {}, zoneState: {}, claimedHiddenClasses: {} };
   return rooms[code];
 }
 
@@ -60,6 +60,7 @@ io.on('connection', (socket) => {
       selfId: socket.id,
       players: r.players,
       zoneState: r.zoneState,
+      claimedHiddenClasses: Object.fromEntries(Object.entries(r.claimedHiddenClasses).map(([k,v])=>[k, v.playerName])),
     });
     socket.to(currentRoom).emit('playerJoined', r.players[socket.id]);
   });
@@ -128,6 +129,23 @@ io.on('connection', (socket) => {
   socket.on('skillCast', (data) => {
     if(!currentRoom) return;
     socket.to(currentRoom).emit('skillCast', data);
+  });
+
+  // 히든 직업은 방(room)당 한 명만 전직 가능 - 선착순 선점
+  socket.on('claimHiddenClass', ({ classId }) => {
+    if(!currentRoom || !rooms[currentRoom] || !classId) return;
+    const r = rooms[currentRoom];
+    if(!r.claimedHiddenClasses) r.claimedHiddenClasses = {};
+    const existing = r.claimedHiddenClasses[classId];
+    if(existing){
+      socket.emit('hiddenClassClaimResult', { classId, success:false, claimedBy: existing.playerName });
+      return;
+    }
+    const p = r.players[socket.id];
+    const playerName = p ? p.name : '???';
+    r.claimedHiddenClasses[classId] = { playerId: socket.id, playerName };
+    socket.emit('hiddenClassClaimResult', { classId, success:true });
+    socket.to(currentRoom).emit('hiddenClassTaken', { classId, playerName });
   });
 
   socket.on('pvpAttack', ({ targetId, dmg, attackerName, skillName }) => {
