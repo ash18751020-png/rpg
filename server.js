@@ -131,6 +131,11 @@ io.on('connection', (socket) => {
     socket.to(currentRoom).emit('skillCast', data);
   });
 
+  socket.on('dimensionPortalOpen', (data) => {
+    if(!currentRoom) return;
+    socket.to(currentRoom).emit('dimensionPortalOpen', data);
+  });
+
   // 히든 직업은 방(room)당 한 명만 전직 가능 - 선착순 선점
   socket.on('claimHiddenClass', ({ classId }) => {
     if(!currentRoom || !rooms[currentRoom] || !classId) return;
