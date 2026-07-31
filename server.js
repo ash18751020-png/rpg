@@ -136,6 +136,26 @@ io.on('connection', (socket) => {
     socket.to(currentRoom).emit('dimensionPortalOpen', data);
   });
 
+  socket.on('warderBarrierPlaced', (data) => {
+    if(!currentRoom) return;
+    socket.to(currentRoom).emit('warderBarrierPlaced', data);
+  });
+
+  socket.on('warderShieldCast', (data) => {
+    if(!currentRoom) return;
+    socket.to(currentRoom).emit('warderShieldCast', data);
+  });
+
+  socket.on('dimensionRaidTriggered', (data) => {
+    if(!currentRoom) return;
+    socket.to(currentRoom).emit('dimensionRaidTriggered', data);
+  });
+
+  socket.on('dimensionEaterDefeated', (data) => {
+    if(!currentRoom) return;
+    socket.to(currentRoom).emit('dimensionEaterDefeated', data);
+  });
+
   // 히든 직업은 방(room)당 한 명만 전직 가능 - 선착순 선점
   socket.on('claimHiddenClass', ({ classId }) => {
     if(!currentRoom || !rooms[currentRoom] || !classId) return;
