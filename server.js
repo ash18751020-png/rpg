@@ -141,6 +141,39 @@ io.on('connection', (socket) => {
     socket.to(currentRoom).emit('warderBarrierPlaced', data);
   });
 
+  socket.on('customSkinUpdate', (data) => {
+    if(!currentRoom) return;
+    socket.to(currentRoom).emit('customSkinUpdate', { ...data, id: socket.id });
+  });
+
+  socket.on('potentialLifeshare', (data) => {
+    if(!currentRoom) return;
+    socket.to(currentRoom).emit('potentialLifeshare', data);
+  });
+
+  socket.on('pioneerZoneCreated', (data) => {
+    if(!currentRoom) return;
+    socket.to(currentRoom).emit('pioneerZoneCreated', data);
+  });
+
+  // 대식가 각성기(만찬시간) - 방 전체에 결계 생성 전파
+  socket.on('feastZonePlaced', (data) => {
+    if(!currentRoom) return;
+    socket.to(currentRoom).emit('feastZonePlaced', data);
+  });
+
+  // 공간술사 주머니 차원 온/오프 - 방 전체에 상태 전파
+  socket.on('pocketDimensionToggle', (data) => {
+    if(!currentRoom) return;
+    socket.to(currentRoom).emit('pocketDimensionToggle', { ...data, fromId: socket.id });
+  });
+
+  // 해커의 아군 지원(치트 공유 등) - 지정된 대상에게만 개별 전송
+  socket.on('hackerSupport', ({ targetId, type, fromName }) => {
+    if(!currentRoom || !targetId) return;
+    io.to(targetId).emit('hackerSupport', { type, fromName, fromId: socket.id });
+  });
+
   socket.on('warderShieldCast', (data) => {
     if(!currentRoom) return;
     socket.to(currentRoom).emit('warderShieldCast', data);
